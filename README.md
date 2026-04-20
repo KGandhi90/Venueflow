@@ -18,7 +18,6 @@
 - [API Reference](#api-reference)
 - [Design System](#design-system)
 - [Roadmap](#roadmap)
-- [Team](#team)
 
 ---
 
@@ -374,16 +373,7 @@ Dashboard light mode uses `#F4F3EF` (warm off-white) as the background and `#1C1
 - [ ] Phase 3 — Claude AI Concierge integration
 - [ ] Phase 4 — Node.js + Express backend API
 - [ ] Phase 5 — Polish, micro-interactions, error & empty states
-- [ ] Phase 6 — Deployment (Vercel + Railway)
-
-### Future Ideas
-- [ ] Real IoT sensor integration for actual crowd density data
-- [ ] Push notifications for order-ready and gate alerts
-- [ ] Loyalty points system for in-app purchases
-- [ ] Multi-venue support with venue admin onboarding
-- [ ] Wearable integration (Apple Watch haptics for seat navigation)
-- [ ] Post-event analytics dashboard for venue operators
-- [ ] Accessibility mode with larger text and high contrast
+- [ ] Phase 6 — Deployment (Vercel)
 
 ---
 
