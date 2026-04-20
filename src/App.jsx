@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom'
 import TopBar from './components/TopBar'
 import BottomNav from './components/BottomNav'
 import Home from './pages/Home'
@@ -9,8 +9,9 @@ import Chat from './pages/Chat'
 import EntryGuide from './pages/EntryGuide'
 import Dashboard from './pages/Dashboard'
 
-// Layout wrapper for attendee pages
+// Layout wrapper for attendee pages — re-keys Outlet on path change for page-enter animation
 function AttendeeLayout() {
+  const location = useLocation()
   return (
     <div
       style={{
@@ -21,7 +22,7 @@ function AttendeeLayout() {
       }}
     >
       <TopBar />
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }} key={location.pathname}>
         <Outlet />
       </div>
       <BottomNav />

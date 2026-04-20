@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
-import { waitTimes } from '../data/mockData'
+import { useVenue } from '../context/VenueContext'
 import WaitCard from '../components/WaitCard'
 
 const waitToStatus = wait => {
@@ -16,34 +16,79 @@ const sections = [
 ]
 
 export default function WaitTimes() {
+  const { waitTimes, lastUpdated, manualRefresh } = useVenue()
   const [open, setOpen] = useState({ restrooms: true, foodCourts: true, parking: true })
+  const [secondsAgo, setSecondsAgo] = useState(0)
+  const [spinning, setSpinning] = useState(false)
+
+  // "Last updated Xs ago" ticker
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsAgo(Math.floor((Date.now() - lastUpdated) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [lastUpdated])
+
+  // Reset secondsAgo when lastUpdated changes
+  useEffect(() => {
+    setSecondsAgo(0)
+  }, [lastUpdated])
 
   const toggle = key => setOpen(prev => ({ ...prev, [key]: !prev[key] }))
 
+  const handleRefresh = () => {
+    manualRefresh()
+    setSpinning(true)
+    setTimeout(() => setSpinning(false), 600)
+  }
+
+  // Find item with lowest wait across all categories
+  const allItems = [
+    ...waitTimes.restrooms.map(i => ({ ...i, cat: 'Restrooms' })),
+    ...waitTimes.foodCourts.map(i => ({ ...i, cat: 'Food Courts' })),
+    ...waitTimes.parking.map(i => ({ ...i, cat: 'Parking' })),
+  ]
+  const bestItem = allItems.reduce((best, i) => i.wait < best.wait ? i : best, allItems[0])
+
   return (
     <div className="page-enter" style={{ padding: '20px 20px 120px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1
-          style={{
-            fontFamily: 'Syne, sans-serif',
-            fontSize: 22,
-            fontWeight: 700,
-            color: '#F0F0F0',
-          }}
-        >
+        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 22, fontWeight: 700, color: '#F0F0F0' }}>
           Wait Times
         </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: '#6B6B7A' }}>Updated 12s ago</span>
-          <RefreshCw size={12} color="#6B6B7A" />
-        </div>
+        <button
+          id="refresh-wait-times"
+          onClick={handleRefresh}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          <span style={{ fontSize: 11, color: '#6B6B7A' }}>
+            Updated {secondsAgo}s ago
+          </span>
+          <RefreshCw
+            size={12}
+            color="#6B6B7A"
+            style={{
+              transition: 'transform 0.6s ease',
+              transform: spinning ? 'rotate(360deg)' : 'rotate(0deg)',
+            }}
+          />
+        </button>
       </div>
 
       {/* Sections */}
       {sections.map(({ key, label }) => (
         <div key={key}>
-          {/* Section header — toggle */}
+          {/* Section toggle */}
           <button
             id={`toggle-${key}`}
             onClick={() => toggle(key)}
@@ -60,14 +105,7 @@ export default function WaitTimes() {
               marginBottom: 12,
             }}
           >
-            <span
-              style={{
-                fontFamily: 'Syne, sans-serif',
-                fontSize: 15,
-                fontWeight: 600,
-                color: '#F0F0F0',
-              }}
-            >
+            <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 15, fontWeight: 600, color: '#F0F0F0' }}>
               {label}
             </span>
             {open[key]
@@ -76,9 +114,9 @@ export default function WaitTimes() {
             }
           </button>
 
-          {/* Items */}
-          {open[key] && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Animated body */}
+          <div className={`section-body ${open[key] ? 'open' : 'closed'}`}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 }}>
               {waitTimes[key].map(item => (
                 <WaitCard
                   key={item.id}
@@ -89,11 +127,11 @@ export default function WaitTimes() {
                 />
               ))}
             </div>
-          )}
+          </div>
         </div>
       ))}
 
-      {/* Best time card */}
+      {/* Best time card — dynamic */}
       <div
         style={{
           background: '#1A1A24',
@@ -102,23 +140,14 @@ export default function WaitTimes() {
           borderLeft: '2px solid #C8F135',
         }}
       >
-        <p
-          style={{
-            fontSize: 10,
-            color: '#C8F135',
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-            marginBottom: 6,
-          }}
-        >
+        <p style={{ fontSize: 10, color: '#C8F135', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>
           Best Time to Visit
         </p>
         <p style={{ fontSize: 14, color: '#F0F0F0', fontWeight: 500, marginBottom: 4 }}>
-          Restrooms in Block R11 — Upper Tier are free now
+          {bestItem.name} — just {bestItem.wait} min wait
         </p>
         <p style={{ fontSize: 12, color: '#6B6B7A' }}>
-          Just 1 min wait · Quietest spot right now
+          Quietest spot right now · {bestItem.cat}
         </p>
       </div>
     </div>

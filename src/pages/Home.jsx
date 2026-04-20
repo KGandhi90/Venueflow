@@ -1,40 +1,57 @@
-import { Navigation, UtensilsCrossed, MapPin, MessageCircle, ArrowRight, ChevronRight } from 'lucide-react'
-import { match, seat, dashStats } from '../data/mockData'
 import { useNavigate } from 'react-router-dom'
-
-const quickActions = [
-  {
-    id: 'navigate-seat',
-    icon: Navigation,
-    title: 'Navigate to Seat',
-    desc: 'Turn-by-turn guide',
-    to: '/map',
-  },
-  {
-    id: 'order-food',
-    icon: UtensilsCrossed,
-    title: 'Order Food',
-    desc: `Deliver to ${seat.section}${seat.row}-${seat.seat}`,
-    to: '/orders',
-  },
-  {
-    id: 'find-restroom',
-    icon: MapPin,
-    title: 'Find Restroom',
-    desc: 'Nearest: Block R1, 2 min',
-    to: '/waittimes',
-  },
-  {
-    id: 'get-help',
-    icon: MessageCircle,
-    title: 'Get Help',
-    desc: 'AI concierge',
-    to: '/chat',
-  },
-]
+import { Navigation, UtensilsCrossed, MapPin, MessageCircle, ArrowRight, ChevronRight } from 'lucide-react'
+import { useVenue } from '../context/VenueContext'
+import { useFlash } from '../hooks/useFlash'
 
 export default function Home() {
   const navigate = useNavigate()
+  const { seat, dashStats, waitTimes } = useVenue()
+
+  // Find best restroom (lowest wait)
+  const allRestrooms = waitTimes.restrooms
+  const bestRestroom = allRestrooms.reduce((best, r) => r.wait < best.wait ? r : best, allRestrooms[0])
+
+  // Find best overall item across all categories for AI suggestion
+  const allItems = [
+    ...waitTimes.restrooms.map(i => ({ ...i, type: 'Restroom' })),
+    ...waitTimes.foodCourts.map(i => ({ ...i, type: 'Food Court' })),
+  ]
+  const bestItem = allItems.reduce((best, i) => i.wait < best.wait ? i : best, allItems[0])
+
+  const checkedInFlash  = useFlash(dashStats.checkedIn)
+  const avgWaitFlash    = useFlash(dashStats.avgWait)
+  const crowdIndexFlash = useFlash(dashStats.crowdIndex)
+
+  const quickActions = [
+    {
+      id: 'navigate-seat',
+      icon: Navigation,
+      title: 'Navigate to Seat',
+      desc: 'Turn-by-turn guide',
+      to: '/map',
+    },
+    {
+      id: 'order-food',
+      icon: UtensilsCrossed,
+      title: 'Order Food',
+      desc: `Deliver to ${seat.section}${seat.row}-${seat.seat}`,
+      to: '/orders',
+    },
+    {
+      id: 'find-restroom',
+      icon: MapPin,
+      title: 'Find Restroom',
+      desc: `Nearest: ${bestRestroom.name.split('—')[0].trim()}, ${bestRestroom.wait} min`,
+      to: '/waittimes',
+    },
+    {
+      id: 'get-help',
+      icon: MessageCircle,
+      title: 'Get Help',
+      desc: 'AI concierge',
+      to: '/chat',
+    },
+  ]
 
   return (
     <div className="page-enter" style={{ padding: '20px 20px 120px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -66,7 +83,6 @@ export default function Home() {
               {seat.section} · Row {seat.row} · Seat {seat.seat}
             </p>
           </div>
-          {/* Lime chip */}
           <span
             style={{
               background: 'rgba(200,241,53,0.12)',
@@ -79,7 +95,7 @@ export default function Home() {
               border: '1px solid rgba(200,241,53,0.2)',
             }}
           >
-            2 min wait
+            {bestRestroom.wait} min wait
           </span>
         </div>
 
@@ -93,12 +109,8 @@ export default function Home() {
             borderTop: '1px solid rgba(255,255,255,0.06)',
           }}
         >
-          <span style={{ fontSize: 13, color: '#6B6B7A' }}>
-            Recommended gate:
-          </span>
-          <span style={{ fontSize: 13, color: '#F0F0F0', fontWeight: 500 }}>
-            {seat.gate}
-          </span>
+          <span style={{ fontSize: 13, color: '#6B6B7A' }}>Recommended gate:</span>
+          <span style={{ fontSize: 13, color: '#F0F0F0', fontWeight: 500 }}>{seat.gate}</span>
           <ArrowRight size={14} color="#6B6B7A" style={{ marginLeft: 2 }} />
         </div>
       </div>
@@ -106,12 +118,13 @@ export default function Home() {
       {/* SECTION 2 — Crowd Status Strip */}
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }} className="no-scrollbar">
         {[
-          `${dashStats.checkedIn.toLocaleString()} inside`,
-          `Avg wait ${dashStats.avgWait} min`,
-          `${dashStats.crowdIndex}% capacity`,
-        ].map(label => (
+          { label: `${dashStats.checkedIn.toLocaleString()} inside`,  flash: checkedInFlash  },
+          { label: `Avg wait ${dashStats.avgWait} min`,               flash: avgWaitFlash    },
+          { label: `${dashStats.crowdIndex}% capacity`,               flash: crowdIndexFlash },
+        ].map(({ label, flash }) => (
           <span
             key={label}
+            className={flash}
             style={{
               background: '#1A1A24',
               border: '1px solid rgba(255,255,255,0.06)',
@@ -129,13 +142,7 @@ export default function Home() {
       </div>
 
       {/* SECTION 3 — Quick Actions Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 12,
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {quickActions.map(({ id, icon: Icon, title, desc, to }) => (
           <div
             key={id}
@@ -154,15 +161,9 @@ export default function Home() {
             }}
           >
             <Icon size={24} color="#C8F135" strokeWidth={1.5} />
-            <p style={{ fontSize: 14, color: '#F0F0F0', fontWeight: 500, marginTop: 4 }}>
-              {title}
-            </p>
+            <p style={{ fontSize: 14, color: '#F0F0F0', fontWeight: 500, marginTop: 4 }}>{title}</p>
             <p style={{ fontSize: 11, color: '#6B6B7A' }}>{desc}</p>
-            <ChevronRight
-              size={14}
-              color="#6B6B7A"
-              style={{ position: 'absolute', bottom: 16, right: 16 }}
-            />
+            <ChevronRight size={14} color="#6B6B7A" style={{ position: 'absolute', bottom: 16, right: 16 }} />
           </div>
         ))}
       </div>
@@ -189,7 +190,7 @@ export default function Home() {
           AI Suggestion
         </p>
         <p style={{ fontSize: 14, color: '#F0F0F0', fontWeight: 500, marginBottom: 4 }}>
-          Best restroom break in ~8 min during stoppage time
+          Best time: {bestItem.name.split('—')[0].trim()} — {bestItem.wait} min wait now
         </p>
         <p style={{ fontSize: 12, color: '#6B6B7A' }}>
           Gate B congestion expected to ease after 72'

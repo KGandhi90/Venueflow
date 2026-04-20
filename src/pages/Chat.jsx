@@ -10,16 +10,30 @@ const QUICK_REPLIES = [
   'First aid',
 ]
 
-const MOCK_AI_RESPONSE =
-  "I'm checking that for you! Meanwhile, the nearest option based on your current location is just a short walk away. Is there anything else I can help you with? 🙂"
+function getMockResponse(input) {
+  const lower = input.toLowerCase()
+  if (lower.includes('restroom') || lower.includes('toilet'))
+    return "Nearest to your seat is Block R1 by Gate A — 2 min wait. Block R11 on the upper tier is also free right now."
+  if (lower.includes('food') || lower.includes('eat') || lower.includes('hungry'))
+    return "Food Court 2 in the central zone has the shortest wait right now at 4 minutes. Court 4 on the upper level is also quick — just 2 min!"
+  if (lower.includes('lost') || lower.includes('bag') || lower.includes('phone'))
+    return "Sorry to hear that! Head to Lost & Found at Gate A — our staff there can help. You can also describe the item and I'll log it for you."
+  if (lower.includes('halftime') || lower.includes('break') || lower.includes('half'))
+    return "Halftime is expected around the 45-minute mark. Based on current flow, best time for restrooms or food is in the first 3 minutes of the break — before queues build up."
+  if (lower.includes('wheelchair') || lower.includes('accessible') || lower.includes('disability'))
+    return "Accessible facilities are available at Gates A, C, and F. Lifts are near Gates A and D. Need me to route you to the nearest accessible entrance?"
+  if (lower.includes('first aid') || lower.includes('medical') || lower.includes('doctor'))
+    return "The medical centre is located near Gate C — follow the red cross signs from any concourse. Response team is on-site 24/7 during the event."
+  return "I'm here to help! You can ask me about restrooms, food, wait times, lost items, accessibility, or anything else about Horizon Arena."
+}
 
-const initialMessages = [
-  {
-    id: 1,
-    role: 'user',
-    message: 'Where\'s the nearest restroom?',
-    time: '67:01',
-  },
+function getTime() {
+  const now = new Date()
+  return `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`
+}
+
+const INITIAL_MESSAGES = [
+  { id: 1, role: 'user', message: "Where's the nearest restroom?", time: '67:01' },
   {
     id: 2,
     role: 'ai',
@@ -30,26 +44,21 @@ const initialMessages = [
 ]
 
 export default function Chat() {
-  const [messages, setMessages] = useState(initialMessages)
-  const [input, setInput] = useState('')
+  const [messages, setMessages] = useState(INITIAL_MESSAGES)
+  const [input, setInput]       = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  const bottomRef = useRef(null)
+  const bottomRef               = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  const sendMessage = (text = input) => {
+  const send = (text = input) => {
     const msg = text.trim()
-    if (!msg) return
+    if (!msg || isTyping) return
     setInput('')
 
-    const userMsg = {
-      id: Date.now(),
-      role: 'user',
-      message: msg,
-      time: '67:' + String(Math.floor(Math.random() * 59)).padStart(2, '0'),
-    }
+    const userMsg = { id: Date.now(), role: 'user', message: msg, time: getTime() }
     setMessages(prev => [...prev, userMsg])
     setIsTyping(true)
 
@@ -60,11 +69,16 @@ export default function Chat() {
         {
           id: Date.now() + 1,
           role: 'ai',
-          message: MOCK_AI_RESPONSE,
-          time: '67:' + String(Math.floor(Math.random() * 59)).padStart(2, '0'),
+          message: getMockResponse(msg),
+          time: getTime(),
         },
       ])
-    }, 1800)
+    }, 1200)
+  }
+
+  const handleQuickReply = (reply) => {
+    setInput(reply)
+    send(reply)
   }
 
   return (
@@ -90,16 +104,10 @@ export default function Chat() {
       >
         <div
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: '50%',
+            width: 38, height: 38, borderRadius: '50%',
             background: 'linear-gradient(135deg, #7C6AFA, #C8F135)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 12,
-            fontWeight: 700,
-            color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, fontWeight: 700, color: '#fff',
           }}
         >
           VF
@@ -115,17 +123,14 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Messages area */}
+      {/* Messages */}
       <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '16px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-        }}
         className="no-scrollbar"
+        style={{
+          flex: 1, overflowY: 'auto',
+          padding: '16px 20px',
+          display: 'flex', flexDirection: 'column', gap: 12,
+        }}
       >
         {messages.map(m => (
           <ChatBubble key={m.id} role={m.role} message={m.message} time={m.time} />
@@ -136,17 +141,9 @@ export default function Chat() {
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
             <div
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: '#7C6AFA',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 10,
-                fontWeight: 700,
-                color: '#fff',
-                flexShrink: 0,
+                width: 28, height: 28, borderRadius: '50%', background: '#7C6AFA',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0,
               }}
             >
               VF
@@ -156,19 +153,14 @@ export default function Chat() {
                 background: '#1A1A24',
                 borderRadius: '16px 16px 16px 4px',
                 padding: '12px 16px',
-                display: 'flex',
-                gap: 5,
-                alignItems: 'center',
+                display: 'flex', gap: 5, alignItems: 'center',
               }}
             >
               {[0, 1, 2].map(i => (
                 <span
                   key={i}
                   style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: '#6B6B7A',
+                    width: 6, height: 6, borderRadius: '50%', background: '#6B6B7A',
                     animation: `pulse-lime 1.2s ease-in-out ${i * 0.2}s infinite`,
                   }}
                 />
@@ -183,26 +175,21 @@ export default function Chat() {
       <div
         className="no-scrollbar"
         style={{
-          display: 'flex',
-          gap: 8,
-          overflowX: 'auto',
-          padding: '8px 20px',
-          flexShrink: 0,
+          display: 'flex', gap: 8, overflowX: 'auto',
+          padding: '8px 20px', flexShrink: 0,
         }}
       >
         {QUICK_REPLIES.map(r => (
           <button
             key={r}
-            onClick={() => sendMessage(r)}
+            onClick={() => handleQuickReply(r)}
             style={{
               background: '#1A1A24',
               border: '1px solid rgba(255,255,255,0.08)',
               borderRadius: 9999,
               padding: '7px 14px',
-              fontSize: 12,
-              color: '#D0D0D0',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
+              fontSize: 12, color: '#D0D0D0',
+              cursor: 'pointer', whiteSpace: 'nowrap',
               transition: 'background 0.15s ease',
             }}
           >
@@ -212,16 +199,10 @@ export default function Chat() {
       </div>
 
       {/* Input bar */}
-      <div
-        style={{
-          padding: '10px 20px 100px',
-          flexShrink: 0,
-        }}
-      >
+      <div style={{ padding: '10px 20px 100px', flexShrink: 0 }}>
         <div
           style={{
-            display: 'flex',
-            gap: 10,
+            display: 'flex', gap: 10,
             background: '#1A1A24',
             border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 16,
@@ -235,31 +216,21 @@ export default function Chat() {
             placeholder="Ask anything about the venue..."
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && sendMessage()}
+            onKeyDown={e => e.key === 'Enter' && send()}
             style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: '#F0F0F0',
-              fontSize: 14,
+              flex: 1, background: 'transparent',
+              border: 'none', outline: 'none',
+              color: '#F0F0F0', fontSize: 14,
             }}
           />
           <button
             id="chat-send-btn"
-            onClick={() => sendMessage()}
+            onClick={() => send()}
             style={{
-              background: '#C8F135',
-              border: 'none',
-              borderRadius: 9999,
-              width: 38,
-              height: 38,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              flexShrink: 0,
-              transition: 'transform 0.12s ease',
+              background: '#C8F135', border: 'none', borderRadius: 9999,
+              width: 38, height: 38,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0, transition: 'transform 0.12s ease',
             }}
             onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
             onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}

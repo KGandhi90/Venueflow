@@ -1,6 +1,10 @@
-import { match } from '../data/mockData'
+import { useVenue } from '../context/VenueContext'
+import { useFlash } from '../hooks/useFlash'
 
 export default function TopBar() {
+  const { match } = useVenue()
+  const minuteFlash = useFlash(match.minute)
+
   return (
     <header
       style={{
@@ -30,6 +34,7 @@ export default function TopBar() {
           }}
         />
         <span
+          className={minuteFlash}
           style={{
             fontFamily: 'Syne, sans-serif',
             color: '#C8F135',

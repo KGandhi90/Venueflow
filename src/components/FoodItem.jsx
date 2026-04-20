@@ -8,7 +8,7 @@ const tagColor = {
   New:        { bg: 'rgba(200,241,53,0.12)',  color: '#C8F135' },
 }
 
-export default function FoodItem({ item, isMerch = false, onAdd }) {
+export default function FoodItem({ item, isMerch = false, onAdd, qty = 0 }) {
   const tag = item.tag ? tagColor[item.tag] : null
 
   return (
@@ -87,10 +87,10 @@ export default function FoodItem({ item, isMerch = false, onAdd }) {
             width: 28,
             height: 28,
             borderRadius: '50%',
-            background: '#C8F135',
+            background: qty > 0 ? '#C8F135' : '#C8F135',
             color: '#0A0A0F',
             border: 'none',
-            fontSize: 18,
+            fontSize: qty > 0 ? 13 : 18,
             fontWeight: 700,
             cursor: 'pointer',
             display: 'flex',
@@ -99,11 +99,12 @@ export default function FoodItem({ item, isMerch = false, onAdd }) {
             lineHeight: 1,
             flexShrink: 0,
             transition: 'transform 0.12s ease',
+            position: 'relative',
           }}
           onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
-          +
+          {qty > 0 ? qty : '+'}
         </button>
       </div>
     </div>
