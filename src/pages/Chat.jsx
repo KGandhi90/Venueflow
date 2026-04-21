@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send } from 'lucide-react'
 import ChatBubble from '../components/ChatBubble'
+import { sendMessage } from '../api/geminiApi'
 
 const QUICK_REPLIES = [
   'Nearest restroom',
@@ -10,26 +11,8 @@ const QUICK_REPLIES = [
   'First aid',
 ]
 
-function getMockResponse(input) {
-  const lower = input.toLowerCase()
-  if (lower.includes('restroom') || lower.includes('toilet'))
-    return "Nearest to your seat is Block R1 by Gate A — 2 min wait. Block R11 on the upper tier is also free right now."
-  if (lower.includes('food') || lower.includes('eat') || lower.includes('hungry'))
-    return "Food Court 2 in the central zone has the shortest wait right now at 4 minutes. Court 4 on the upper level is also quick — just 2 min!"
-  if (lower.includes('lost') || lower.includes('bag') || lower.includes('phone'))
-    return "Sorry to hear that! Head to Lost & Found at Gate A — our staff there can help. You can also describe the item and I'll log it for you."
-  if (lower.includes('halftime') || lower.includes('break') || lower.includes('half'))
-    return "Halftime is expected around the 45-minute mark. Based on current flow, best time for restrooms or food is in the first 3 minutes of the break — before queues build up."
-  if (lower.includes('wheelchair') || lower.includes('accessible') || lower.includes('disability'))
-    return "Accessible facilities are available at Gates A, C, and F. Lifts are near Gates A and D. Need me to route you to the nearest accessible entrance?"
-  if (lower.includes('first aid') || lower.includes('medical') || lower.includes('doctor'))
-    return "The medical centre is located near Gate C — follow the red cross signs from any concourse. Response team is on-site 24/7 during the event."
-  return "I'm here to help! You can ask me about restrooms, food, wait times, lost items, accessibility, or anything else about Horizon Arena."
-}
-
 function getTime() {
-  const now = new Date()
-  return `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 const INITIAL_MESSAGES = [
@@ -44,41 +27,72 @@ const INITIAL_MESSAGES = [
 ]
 
 export default function Chat() {
-  const [messages, setMessages] = useState(INITIAL_MESSAGES)
-  const [input, setInput]       = useState('')
-  const [isTyping, setIsTyping] = useState(false)
-  const bottomRef               = useRef(null)
+  const [messages, setMessages]     = useState(INITIAL_MESSAGES)
+  const [apiHistory, setApiHistory] = useState([])   // Gemini format: [{ role, parts }]
+  const [input, setInput]           = useState('')
+  const [isTyping, setIsTyping]     = useState(false)
+  const bottomRef                   = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  const send = (text = input) => {
-    const msg = text.trim()
-    if (!msg || isTyping) return
+  const handleSend = async (text) => {
+    const userText = (text ?? input).trim()
+    if (!userText || isTyping) return
+
+    // 1. Append to UI messages
+    setMessages(prev => [
+      ...prev,
+      { id: Date.now(), role: 'user', message: userText, time: getTime() },
+    ])
     setInput('')
 
-    const userMsg = { id: Date.now(), role: 'user', message: msg, time: getTime() }
-    setMessages(prev => [...prev, userMsg])
+    // 2. Build updated API history (Gemini format)
+    const updatedHistory = [
+      ...apiHistory,
+      { role: 'user', parts: [{ text: userText }] },
+    ]
+    setApiHistory(updatedHistory)
+
+    // 3. Show typing indicator
     setIsTyping(true)
 
-    setTimeout(() => {
-      setIsTyping(false)
+    try {
+      // 4. Call Gemini (or mock fallback)
+      const reply = await sendMessage(updatedHistory)
+
+      // 5. Append AI response to UI
+      setMessages(prev => [
+        ...prev,
+        { id: Date.now() + 1, role: 'ai', message: reply, time: getTime() },
+      ])
+
+      // 6. Append AI response to API history
+      setApiHistory(prev => [
+        ...prev,
+        { role: 'model', parts: [{ text: reply }] },
+      ])
+    } catch (err) {
+      // 7. Show subtle error bubble — no crash
       setMessages(prev => [
         ...prev,
         {
           id: Date.now() + 1,
           role: 'ai',
-          message: getMockResponse(msg),
+          message: "Sorry, I'm having trouble connecting right now. Please ask a staff member at Gate A for help!",
           time: getTime(),
+          isError: true,
         },
       ])
-    }, 1200)
+    } finally {
+      // 8. Always hide typing indicator
+      setIsTyping(false)
+    }
   }
 
   const handleQuickReply = (reply) => {
-    setInput(reply)
-    send(reply)
+    handleSend(reply)
   }
 
   return (
@@ -123,7 +137,7 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Messages area */}
       <div
         className="no-scrollbar"
         style={{
@@ -133,7 +147,13 @@ export default function Chat() {
         }}
       >
         {messages.map(m => (
-          <ChatBubble key={m.id} role={m.role} message={m.message} time={m.time} />
+          <ChatBubble
+            key={m.id}
+            role={m.role}
+            message={m.message}
+            time={m.time}
+            isError={m.isError}
+          />
         ))}
 
         {/* Typing indicator */}
@@ -216,7 +236,7 @@ export default function Chat() {
             placeholder="Ask anything about the venue..."
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && send()}
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
             style={{
               flex: 1, background: 'transparent',
               border: 'none', outline: 'none',
@@ -225,15 +245,18 @@ export default function Chat() {
           />
           <button
             id="chat-send-btn"
-            onClick={() => send()}
+            onClick={() => handleSend()}
+            disabled={isTyping}
             style={{
-              background: '#C8F135', border: 'none', borderRadius: 9999,
+              background: isTyping ? 'rgba(200,241,53,0.5)' : '#C8F135',
+              border: 'none', borderRadius: 9999,
               width: 38, height: 38,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', flexShrink: 0, transition: 'transform 0.12s ease',
+              cursor: isTyping ? 'not-allowed' : 'pointer',
+              flexShrink: 0, transition: 'all 0.12s ease',
             }}
-            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
-            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+            onMouseDown={e => !isTyping && (e.currentTarget.style.transform = 'scale(0.9)')}
+            onMouseUp={e => (e.currentTarget.style.transform = 'scale(1)')}
           >
             <Send size={16} color="#0A0A0F" />
           </button>

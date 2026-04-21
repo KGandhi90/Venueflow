@@ -1,4 +1,4 @@
-export default function ChatBubble({ role, message, time }) {
+export default function ChatBubble({ role, message, time, isError = false }) {
   const isUser = role === 'user'
 
   return (
@@ -43,6 +43,7 @@ export default function ChatBubble({ role, message, time }) {
             fontSize: 13,
             lineHeight: 1.55,
             fontWeight: isUser ? 500 : 400,
+            border: (!isUser && isError) ? '1px solid rgba(255,77,109,0.3)' : 'none',
           }}
         >
           {message}
