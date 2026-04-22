@@ -12,6 +12,7 @@ import {
 
 import { socket } from '../api/socket'
 import { venueApi } from '../api/venueApi'
+import { useToast } from '../hooks/useToast'
 
 export const VenueContext = createContext(null)
 
@@ -66,15 +67,38 @@ export function VenueProvider({ children }) {
   const [lastUpdated, setLastUpdated] = useState(Date.now())
 
   const [isBackendConnected, setIsBackendConnected] = useState(false)
+  const { showToast } = useToast()
 
   // Keep a ref to previous wait-time values for trend calculation
   const prevWaitRef = useRef(cloneWaitTimes(initialWaitTimes))
+
+  const [isInitialized, setIsInitialized] = useState(false)
 
   // ── Initialization & Sockets ───────────────────────────────────────────
 
   useEffect(() => {
     let mounted = true
     
+    // Setup socket connection listeners
+    socket.on('connect', () => {
+      if (mounted && !isBackendConnected) {
+        setIsBackendConnected(true)
+        // Wait for initial fetch to finish before showing toast to avoid first load toast
+      }
+    })
+    socket.on('disconnect', () => {
+      if (mounted) {
+        setIsBackendConnected(false)
+        showToast('Live updates paused — reconnecting...', 'error')
+      }
+    })
+    socket.on('reconnect', () => {
+      if (mounted) {
+        setIsBackendConnected(true)
+        showToast('Live updates restored', 'success')
+      }
+    })
+
     async function init() {
       try {
         const status = await venueApi.getStatus()
@@ -91,7 +115,10 @@ export function VenueProvider({ children }) {
           setStaff(apiStaff)
           setAlerts(apiAlerts)
           setLastUpdated(status.lastUpdated || Date.now())
-          setIsBackendConnected(true)
+          
+          if (!isBackendConnected) {
+            setIsBackendConnected(true)
+          }
 
           socket.on('gates:update',     data => { setGates(data); setLastUpdated(Date.now()); })
           socket.on('waitTimes:update', data => { setWaitTimes(data); setLastUpdated(Date.now()); })
@@ -100,9 +127,12 @@ export function VenueProvider({ children }) {
           socket.on('alerts:update',    data => setAlerts(data))
           socket.on('orders:update',    data => setOrders(data))
           socket.on('staff:update',     data => setStaff(data))
+          
+          setIsInitialized(true)
         }
       } catch (err) {
         console.warn('Backend unavailable — using mock data')
+        if (mounted) setIsInitialized(true)
       }
     }
 
@@ -112,7 +142,7 @@ export function VenueProvider({ children }) {
       mounted = false
       socket.disconnect()
     }
-  }, [])
+  }, [showToast])
 
   // ── Live-simulation intervals (Fallback only) ──────────────────────────
 
@@ -253,6 +283,7 @@ export function VenueProvider({ children }) {
     staff,
     lastUpdated,
     isBackendConnected,
+    isInitialized,
     addOrder,
     updateOrderStatus,
     toggleAlertResolved,

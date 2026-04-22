@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
 import { useVenue } from '../context/VenueContext'
 import WaitCard from '../components/WaitCard'
+import { SkeletonWaitCard } from '../components/Skeleton'
 
 const waitToStatus = wait => {
   if (wait <= 3) return 'low'
@@ -16,7 +17,7 @@ const sections = [
 ]
 
 export default function WaitTimes() {
-  const { waitTimes, lastUpdated, manualRefresh } = useVenue()
+  const { waitTimes, lastUpdated, manualRefresh, isInitialized } = useVenue()
   const [open, setOpen] = useState({ restrooms: true, foodCourts: true, parking: true })
   const [secondsAgo, setSecondsAgo] = useState(0)
   const [spinning, setSpinning] = useState(false)
@@ -108,24 +109,37 @@ export default function WaitTimes() {
             <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 15, fontWeight: 600, color: '#F0F0F0' }}>
               {label}
             </span>
-            {open[key]
-              ? <ChevronUp size={16} color="#6B6B7A" />
-              : <ChevronDown size={16} color="#6B6B7A" />
-            }
+            <ChevronDown
+              size={16}
+              color="#6B6B7A"
+              style={{
+                transform: open[key] ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.25s ease'
+              }}
+            />
           </button>
 
           {/* Animated body */}
           <div className={`section-body ${open[key] ? 'open' : 'closed'}`}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 }}>
-              {waitTimes[key].map(item => (
-                <WaitCard
-                  key={item.id}
-                  name={item.name}
-                  wait={item.wait}
-                  trend={item.trend}
-                  status={waitToStatus(item.wait)}
-                />
-              ))}
+              {!isInitialized ? (
+                <>
+                  <SkeletonWaitCard />
+                  <SkeletonWaitCard />
+                  <SkeletonWaitCard />
+                  <SkeletonWaitCard />
+                </>
+              ) : (
+                waitTimes[key].map(item => (
+                  <WaitCard
+                    key={item.id}
+                    name={item.name}
+                    wait={item.wait}
+                    trend={item.trend}
+                    status={waitToStatus(item.wait)}
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>

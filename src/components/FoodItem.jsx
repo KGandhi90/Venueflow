@@ -87,7 +87,7 @@ export default function FoodItem({ item, isMerch = false, onAdd, qty = 0 }) {
             width: 28,
             height: 28,
             borderRadius: '50%',
-            background: qty > 0 ? '#C8F135' : '#C8F135',
+            background: '#C8F135',
             color: '#0A0A0F',
             border: 'none',
             fontSize: qty > 0 ? 13 : 18,
@@ -98,13 +98,16 @@ export default function FoodItem({ item, isMerch = false, onAdd, qty = 0 }) {
             justifyContent: 'center',
             lineHeight: 1,
             flexShrink: 0,
-            transition: 'transform 0.12s ease',
+            transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
             position: 'relative',
           }}
-          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
+          onMouseDown={e => e.currentTarget.style.transform = 'scale(1.2)'}
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
         >
-          {qty > 0 ? qty : '+'}
+          <span key={qty} className={qty > 0 ? 'animate-bounceScale' : ''}>
+            {qty > 0 ? qty : '+'}
+          </span>
         </button>
       </div>
     </div>

@@ -173,23 +173,14 @@ export default function Chat() {
               VF
             </div>
             <div
+              className="skeleton"
               style={{
-                background: '#1A1A24',
                 borderRadius: '16px 16px 16px 4px',
                 padding: '12px 16px',
-                display: 'flex', gap: 5, alignItems: 'center',
+                width: 60,
+                height: 36,
               }}
-            >
-              {[0, 1, 2].map(i => (
-                <span
-                  key={i}
-                  style={{
-                    width: 6, height: 6, borderRadius: '50%', background: '#6B6B7A',
-                    animation: `pulse-lime 1.2s ease-in-out ${i * 0.2}s infinite`,
-                  }}
-                />
-              ))}
-            </div>
+            />
           </div>
         )}
         <div ref={bottomRef} />

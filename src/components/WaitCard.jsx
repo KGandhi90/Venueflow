@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import StatusPill from './StatusPill'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
@@ -8,6 +9,14 @@ const TrendIcon = ({ trend }) => {
 }
 
 export default function WaitCard({ name, wait, trend, status }) {
+  const [flashClass, setFlashClass] = useState('')
+
+  useEffect(() => {
+    setFlashClass('flash')
+    const timer = setTimeout(() => setFlashClass(''), 500)
+    return () => clearTimeout(timer)
+  }, [wait])
+
   return (
     <div
       style={{
@@ -32,6 +41,7 @@ export default function WaitCard({ name, wait, trend, status }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <span
+            className={flashClass}
             style={{
               fontFamily: 'Syne, sans-serif',
               fontSize: 20,

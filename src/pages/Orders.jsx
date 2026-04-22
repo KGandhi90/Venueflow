@@ -5,6 +5,9 @@ import { useVenue } from '../context/VenueContext'
 import { useCart } from '../hooks/useCart'
 import FoodItem from '../components/FoodItem'
 import { venueApi } from '../api/venueApi'
+import { useToast } from '../hooks/useToast'
+import EmptyState from '../components/EmptyState'
+import { Skeleton, SkeletonMenuGrid } from '../components/Skeleton'
 
 const CATEGORIES = [
   { key: 'snacks',      label: 'Snacks',      isMerch: false },
@@ -14,15 +17,15 @@ const CATEGORIES = [
 ]
 
 export default function Orders() {
-  const { seat, match, addOrder } = useVenue()
+  const { seat, match, addOrder, isInitialized } = useVenue()
   const {
     cartItems, addToCart, removeFromCart, clearCart,
     cartCount, cartTotal, isCartOpen, openCart, closeCart,
   } = useCart()
+  const { showToast } = useToast()
 
   const [activeTab, setActiveTab]   = useState('snacks')
   const [delivery, setDelivery]     = useState('seat')    // 'seat' | 'pickup'
-  const [toast, setToast]           = useState(null)      // { msg, exiting }
   const [cartVisible, setCartVisible] = useState(false)   // track first appearance
 
   const tabsRef   = useRef(null)
@@ -31,17 +34,8 @@ export default function Orders() {
   // Show cart bar with slide-up when first item added
   useEffect(() => {
     if (cartCount > 0) setCartVisible(true)
+    if (cartCount === 0) setCartVisible(false) // Reset cart visibility for slide-down
   }, [cartCount])
-
-  // Auto-dismiss toast
-  useEffect(() => {
-    if (!toast) return
-    const dismissId = setTimeout(() => {
-      setToast(t => t ? { ...t, exiting: true } : null)
-      setTimeout(() => setToast(null), 300)
-    }, 3000)
-    return () => clearTimeout(dismissId)
-  }, [toast?.msg])
 
   const items          = menuItems[activeTab] || []
   const activeCategory = CATEGORIES.find(c => c.key === activeTab)
@@ -94,7 +88,7 @@ export default function Orders() {
     clearCart()
     closeCart()
     setCartVisible(false)
-    setToast({ msg: `Order placed! ${delivery === 'seat' ? `Delivering to seat ${seat.section}${seat.row}-${seat.seat}` : 'Ready for pickup shortly'}`, exiting: false })
+    showToast(`Order placed! ${delivery === 'seat' ? `Delivering to seat ${seat.section}${seat.row}-${seat.seat}` : 'Ready for pickup shortly'}`, 'success', CheckCircle)
   }
 
   const getQty = (itemId) => {
@@ -118,28 +112,37 @@ export default function Orders() {
           position: 'relative',
         }}
       >
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat.key}
-            data-tab
-            id={`tab-${cat.key}`}
-            onClick={() => setActiveTab(cat.key)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '10px 18px',
-              fontSize: 14,
-              fontWeight: activeTab === cat.key ? 600 : 400,
-              color: activeTab === cat.key ? '#F0F0F0' : '#6B6B7A',
-              whiteSpace: 'nowrap',
-              transition: 'color 0.15s ease',
-              flexShrink: 0,
-            }}
-          >
-            {cat.label}
-          </button>
-        ))}
+        {!isInitialized ? (
+          <>
+            <Skeleton width="80px" height="38px" rounded="rounded-full" />
+            <Skeleton width="80px" height="38px" rounded="rounded-full" />
+            <Skeleton width="80px" height="38px" rounded="rounded-full" />
+            <Skeleton width="80px" height="38px" rounded="rounded-full" />
+          </>
+        ) : (
+          CATEGORIES.map((cat) => (
+            <button
+              key={cat.key}
+              data-tab
+              id={`tab-${cat.key}`}
+              onClick={() => setActiveTab(cat.key)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '10px 18px',
+                fontSize: 14,
+                fontWeight: activeTab === cat.key ? 600 : 400,
+                color: activeTab === cat.key ? '#F0F0F0' : '#6B6B7A',
+                whiteSpace: 'nowrap',
+                transition: 'color 0.15s ease',
+                flexShrink: 0,
+              }}
+            >
+              {cat.label}
+            </button>
+          ))
+        )}
         {/* Sliding underline indicator */}
         <div
           style={{
@@ -164,24 +167,34 @@ export default function Orders() {
           paddingBottom: cartCount > 0 ? 160 : 110,
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {items.map(item => {
-            const qty = getQty(item.id)
-            return (
-              <FoodItem
-                key={item.id}
-                item={item}
-                isMerch={activeCategory?.isMerch}
-                onAdd={() => addToCart(item)}
-                qty={qty}
-              />
-            )
-          })}
-        </div>
+        {!isInitialized ? (
+          <SkeletonMenuGrid />
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={UtensilsCrossed}
+            title="Nothing here yet"
+            subtitle="Try another category"
+          />
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {items.map(item => {
+              const qty = getQty(item.id)
+              return (
+                <FoodItem
+                  key={item.id}
+                  item={item}
+                  isMerch={activeCategory?.isMerch}
+                  onAdd={() => addToCart(item)}
+                  qty={qty}
+                />
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Cart preview bar */}
-      {cartCount > 0 && (
+      {cartVisible && (
         <div
           style={{
             position: 'fixed',
@@ -199,7 +212,8 @@ export default function Orders() {
             justifyContent: 'space-between',
             zIndex: 150,
             backdropFilter: 'blur(12px)',
-            animation: cartVisible ? 'slideUp 0.25s ease forwards' : 'none',
+            pointerEvents: cartCount > 0 ? 'auto' : 'none',
+            animation: cartCount > 0 ? 'toastIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'toastOut 0.2s ease forwards',
           }}
         >
           <span style={{ fontSize: 14, color: '#F0F0F0', fontWeight: 500 }}>
@@ -282,9 +296,11 @@ export default function Orders() {
             {/* Cart items */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }} className="no-scrollbar">
               {cartItems.length === 0 ? (
-                <p style={{ color: '#6B6B7A', fontSize: 14, textAlign: 'center', marginTop: 40 }}>
-                  Your cart is empty
-                </p>
+                <EmptyState
+                  icon={ShoppingBag}
+                  title="Your cart is empty"
+                  subtitle="Add something from the menu to get started"
+                />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {cartItems.map(({ item, quantity }) => (
@@ -419,31 +435,6 @@ export default function Orders() {
         </>
       )}
 
-      {/* Order confirmation toast */}
-      {toast && (
-        <div
-          className={toast.exiting ? 'toast-exit' : 'toast-enter'}
-          style={{
-            position: 'fixed',
-            bottom: 96,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#1A1A24',
-            border: '1px solid rgba(200,241,53,0.3)',
-            borderRadius: 16,
-            padding: '14px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            zIndex: 500,
-            whiteSpace: 'nowrap',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-          }}
-        >
-          <CheckCircle size={18} color="#C8F135" />
-          <span style={{ fontSize: 13, color: '#F0F0F0', fontWeight: 500 }}>{toast.msg}</span>
-        </div>
-      )}
     </div>
   )
 }

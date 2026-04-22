@@ -8,10 +8,12 @@ import Orders from './pages/Orders'
 import Chat from './pages/Chat'
 import EntryGuide from './pages/EntryGuide'
 import Dashboard from './pages/Dashboard'
+import PageTransition from './components/PageTransition'
+import ConnectionBanner from './components/ConnectionBanner'
+import Toast from './components/Toast'
+import { useToast } from './hooks/useToast'
 
-// Layout wrapper for attendee pages — re-keys Outlet on path change for page-enter animation
 function AttendeeLayout() {
-  const location = useLocation()
   return (
     <div
       style={{
@@ -21,20 +23,24 @@ function AttendeeLayout() {
         background: '#0A0A0F',
       }}
     >
+      <ConnectionBanner />
       <TopBar />
-      <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }} key={location.pathname}>
-        <Outlet />
+      <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </div>
       <BottomNav />
     </div>
   )
 }
 
-export default function App() {
+function MainApp() {
+  const { toasts, removeToast } = useToast()
   return (
-    <BrowserRouter>
+    <>
+      <Toast toasts={toasts} removeToast={removeToast} />
       <Routes>
-        {/* Attendee routes with shared layout */}
         <Route element={<AttendeeLayout />}>
           <Route path="/"          element={<Home />}       />
           <Route path="/map"       element={<Map />}        />
@@ -43,10 +49,16 @@ export default function App() {
           <Route path="/chat"      element={<Chat />}       />
           <Route path="/entry"     element={<EntryGuide />} />
         </Route>
-
-        {/* Ops dashboard — standalone, no TopBar/BottomNav */}
         <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <MainApp />
     </BrowserRouter>
   )
 }
