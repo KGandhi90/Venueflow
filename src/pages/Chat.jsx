@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send } from 'lucide-react'
 import ChatBubble from '../components/ChatBubble'
-import { sendMessage } from '../api/geminiApi'
+import { venueApi } from '../api/venueApi'
 
 const QUICK_REPLIES = [
   'Nearest restroom',
@@ -59,8 +59,12 @@ export default function Chat() {
     setIsTyping(true)
 
     try {
-      // 4. Call Gemini (or mock fallback)
-      const reply = await sendMessage(updatedHistory)
+      // 4. Call venueApi chat
+      const response = await venueApi.chat({
+        message: userText,
+        history: updatedHistory,
+      })
+      const reply = response.reply
 
       // 5. Append AI response to UI
       setMessages(prev => [

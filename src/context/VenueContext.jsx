@@ -10,6 +10,9 @@ import {
   staff as initialStaff,
 } from '../data/mockData'
 
+import { socket } from '../api/socket'
+import { venueApi } from '../api/venueApi'
+
 export const VenueContext = createContext(null)
 
 export function useVenue() {
@@ -62,22 +65,67 @@ export function VenueProvider({ children }) {
   const [staff, setStaff]       = useState(initialStaff.map(s => ({ ...s })))
   const [lastUpdated, setLastUpdated] = useState(Date.now())
 
+  const [isBackendConnected, setIsBackendConnected] = useState(false)
+
   // Keep a ref to previous wait-time values for trend calculation
   const prevWaitRef = useRef(cloneWaitTimes(initialWaitTimes))
 
-  // ── Live-simulation intervals ──────────────────────────────────────────
+  // ── Initialization & Sockets ───────────────────────────────────────────
 
-  // Match minute — every 60 s
   useEffect(() => {
-    const id = setInterval(() => {
-      setMatch(prev => ({ ...prev, minute: Math.min(90, prev.minute + 1) }))
-    }, 60_000)
-    return () => clearInterval(id)
+    let mounted = true
+    
+    async function init() {
+      try {
+        const status = await venueApi.getStatus()
+        const apiOrders = await venueApi.getOrders()
+        const apiStaff = await venueApi.getStaff()
+        const apiAlerts = await venueApi.getAlerts()
+
+        if (mounted) {
+          setMatch(status.match)
+          setGates(status.gates)
+          setWaitTimes(status.waitTimes)
+          setDashStats(status.dashStats)
+          setOrders(apiOrders)
+          setStaff(apiStaff)
+          setAlerts(apiAlerts)
+          setLastUpdated(status.lastUpdated || Date.now())
+          setIsBackendConnected(true)
+
+          socket.on('gates:update',     data => { setGates(data); setLastUpdated(Date.now()); })
+          socket.on('waitTimes:update', data => { setWaitTimes(data); setLastUpdated(Date.now()); })
+          socket.on('stats:update',     data => { setDashStats(data); setLastUpdated(Date.now()); })
+          socket.on('match:update',     data => setMatch(data))
+          socket.on('alerts:update',    data => setAlerts(data))
+          socket.on('orders:update',    data => setOrders(data))
+          socket.on('staff:update',     data => setStaff(data))
+        }
+      } catch (err) {
+        console.warn('Backend unavailable — using mock data')
+      }
+    }
+
+    init()
+
+    return () => {
+      mounted = false
+      socket.disconnect()
+    }
   }, [])
 
-  // Gate wait times — every 12 s
+  // ── Live-simulation intervals (Fallback only) ──────────────────────────
+
   useEffect(() => {
-    const id = setInterval(() => {
+    if (isBackendConnected) return;
+
+    // Match minute — every 60 s
+    const id1 = setInterval(() => {
+      setMatch(prev => ({ ...prev, minute: Math.min(90, prev.minute + 1) }))
+    }, 60_000)
+
+    // Gate wait times — every 12 s
+    const id2 = setInterval(() => {
       setGates(prev =>
         prev.map(g => {
           const newWait = nudge(g.wait, 1, 15)
@@ -86,12 +134,9 @@ export function VenueProvider({ children }) {
       )
       setLastUpdated(Date.now())
     }, 12_000)
-    return () => clearInterval(id)
-  }, [])
 
-  // Restroom / food / parking wait times — every 15 s
-  useEffect(() => {
-    const id = setInterval(() => {
+    // Restroom / food / parking wait times — every 15 s
+    const id3 = setInterval(() => {
       setWaitTimes(prev => {
         const oldRef = prevWaitRef.current
         const next = {
@@ -117,12 +162,9 @@ export function VenueProvider({ children }) {
       })
       setLastUpdated(Date.now())
     }, 15_000)
-    return () => clearInterval(id)
-  }, [])
 
-  // Dashboard stats — every 10 s
-  useEffect(() => {
-    const id = setInterval(() => {
+    // Dashboard stats — every 10 s
+    const id4 = setInterval(() => {
       setDashStats(prev => ({
         ...prev,
         checkedIn:    clamp(prev.checkedIn + Math.floor(Math.random() * 31) + 10, 0, prev.capacity),
@@ -132,8 +174,14 @@ export function VenueProvider({ children }) {
       }))
       setLastUpdated(Date.now())
     }, 10_000)
-    return () => clearInterval(id)
-  }, [])
+
+    return () => {
+      clearInterval(id1)
+      clearInterval(id2)
+      clearInterval(id3)
+      clearInterval(id4)
+    }
+  }, [isBackendConnected])
 
   // ── Manual refresh (WaitTimes page refresh button) ────────────────────
 
@@ -170,7 +218,7 @@ export function VenueProvider({ children }) {
     setLastUpdated(Date.now())
   }, [])
 
-  // ── Mutations ──────────────────────────────────────────────────────────
+  // ── Fallback Mutations ──────────────────────────────────────────────────
 
   const addOrder = useCallback((orderObj) => {
     setOrders(prev => [orderObj, ...prev])
@@ -204,6 +252,7 @@ export function VenueProvider({ children }) {
     orders,
     staff,
     lastUpdated,
+    isBackendConnected,
     addOrder,
     updateOrderStatus,
     toggleAlertResolved,

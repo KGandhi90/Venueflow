@@ -5,6 +5,7 @@ import { useFlash } from '../hooks/useFlash'
 import StatCard from '../components/StatCard'
 import AlertFeed from '../components/AlertFeed'
 import StatusPill from '../components/StatusPill'
+import { venueApi } from '../api/venueApi'
 
 const navItems = [
   { id: 'overview', label: 'Overview',  icon: LayoutDashboard },
@@ -202,26 +203,46 @@ export default function Dashboard() {
   const [showBroadcast, setShowBroadcast]   = useState(false)
   const [broadcastText, setBroadcastText]   = useState('')
 
-  const handleBroadcast = () => {
+  const handleBroadcast = async () => {
     if (!broadcastText.trim()) return
-    addAlert({
-      id:       Date.now(),
-      time:     `${match.minute}:00`,
-      zone:     'Broadcast',
-      type:     'broadcast',
-      msg:      broadcastText.trim(),
-      resolved: false,
-    })
+    try {
+      await venueApi.broadcastAlert({ message: broadcastText.trim(), zone: 'Broadcast' })
+    } catch (e) {
+      console.warn('Backend unavailable, using fallback')
+      addAlert({
+        id:       Date.now(),
+        time:     `${match.minute}:00`,
+        zone:     'Broadcast',
+        type:     'broadcast',
+        msg:      broadcastText.trim(),
+        resolved: false,
+      })
+    }
     setBroadcastText('')
     setShowBroadcast(false)
+  }
+
+  const handleUpdateOrderStatus = async (id, status) => {
+    try { await venueApi.updateOrderStatus(id, status) } 
+    catch (e) { console.warn('Backend unavailable'); updateOrderStatus(id, status) }
+  }
+
+  const handleUpdateStaffStatus = async (id, status) => {
+    try { await venueApi.updateStaffStatus(id, status) } 
+    catch (e) { console.warn('Backend unavailable'); updateStaffStatus(id, status) }
+  }
+
+  const handleToggleAlertResolved = async (id) => {
+    try { await venueApi.resolveAlert(id) } 
+    catch (e) { console.warn('Backend unavailable'); toggleAlertResolved(id) }
   }
 
   const renderContent = () => {
     switch (activeNav) {
       case 'overview': return <OverviewContent dashStats={dashStats} match={match} />
-      case 'orders':   return <OrdersContent orders={orders} updateOrderStatus={updateOrderStatus} />
-      case 'staff':    return <StaffContent staff={staff} updateStaffStatus={updateStaffStatus} />
-      case 'alerts':   return <AlertsContent alerts={alerts} toggleAlertResolved={toggleAlertResolved} />
+      case 'orders':   return <OrdersContent orders={orders} updateOrderStatus={handleUpdateOrderStatus} />
+      case 'staff':    return <StaffContent staff={staff} updateStaffStatus={handleUpdateStaffStatus} />
+      case 'alerts':   return <AlertsContent alerts={alerts} toggleAlertResolved={handleToggleAlertResolved} />
       case 'crowd':
         return (
           <div style={{ background: '#fff', border: '1px solid #E5E5E0', borderRadius: 16, padding: 40, textAlign: 'center' }}>

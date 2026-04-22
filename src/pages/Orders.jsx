@@ -4,6 +4,7 @@ import { menuItems } from '../data/mockData'
 import { useVenue } from '../context/VenueContext'
 import { useCart } from '../hooks/useCart'
 import FoodItem from '../components/FoodItem'
+import { venueApi } from '../api/venueApi'
 
 const CATEGORIES = [
   { key: 'snacks',      label: 'Snacks',      isMerch: false },
@@ -69,17 +70,27 @@ export default function Orders() {
     return () => window.removeEventListener('resize', update)
   }, [activeTab, activeIdx])
 
-  const handlePlaceOrder = () => {
-    const secs = String(Math.floor(Math.random() * 59)).padStart(2, '0')
-    const orderObj = {
-      id:     'ORD-' + String(Math.floor(Math.random() * 900) + 100),
-      seat:   `${seat.section}${seat.row}-${seat.seat}`,
-      items:  cartItems.map(ci => ci.item.name),
-      time:   `${match.minute}:${secs}`,
-      status: 'pending',
-      total:  cartTotal,
+  const handlePlaceOrder = async () => {
+    try {
+      await venueApi.createOrder({
+        seat:         `${seat.section}${seat.row}-${seat.seat}`,
+        items:        cartItems.map(ci => ci.item.name),
+        total:        cartTotal,
+        deliveryType: delivery,
+      })
+    } catch (err) {
+      console.warn('Backend unavailable — using mock data for order')
+      const secs = String(Math.floor(Math.random() * 59)).padStart(2, '0')
+      const orderObj = {
+        id:     'ORD-' + String(Math.floor(Math.random() * 900) + 100),
+        seat:   `${seat.section}${seat.row}-${seat.seat}`,
+        items:  cartItems.map(ci => ci.item.name),
+        time:   `${match.minute}:${secs}`,
+        status: 'pending',
+        total:  cartTotal,
+      }
+      addOrder(orderObj)
     }
-    addOrder(orderObj)
     clearCart()
     closeCart()
     setCartVisible(false)
