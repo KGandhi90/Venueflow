@@ -13,14 +13,33 @@ import alertRoutes  from './routes/alerts.js'
 
 dotenv.config()
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.CLIENT_URL,
+].filter(Boolean)
+
 const app    = express()
 const server = http.createServer(app)
 const io     = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST', 'PATCH'] },
+  cors: {
+    origin:      allowedOrigins,
+    methods:     ['GET', 'POST'],
+    credentials: true,
+  }
 })
 
 // ── Middleware ────────────────────────────────────────────────────────────
-app.use(cors())
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
+  methods:     ['GET', 'POST', 'PATCH', 'DELETE'],
+  credentials: true,
+}))
 app.use(express.json())
 
 // Attach io to every request so routes can emit events

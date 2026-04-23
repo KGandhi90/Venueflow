@@ -1,5 +1,9 @@
 # 🏟️ VenueFlow
 
+[![Live Demo](https://img.shields.io/badge/Live-venueflo.vercel.app-lime?style=flat-square)](https://venueflo.vercel.app)
+[![Backend](https://img.shields.io/badge/API-Railway-purple?style=flat-square)](https://your-railway-url.railway.app/api/health)
+[![GitHub](https://img.shields.io/badge/GitHub-KGandhi90/Venuflow-black?style=flat-square)](https://github.com/KGandhi90/Venuflow)
+
 > Reimagining the physical event experience at large-scale sporting venues through real-time crowd intelligence, AI assistance, and seamless attendee coordination.
 
 ---
@@ -175,6 +179,12 @@ venueflow/
 ---
 
 ## Getting Started
+
+### Production URLs
+
+Frontend: https://venueflo.vercel.app
+Backend:  https://your-railway-url.railway.app
+API docs: https://your-railway-url.railway.app/api/health
 
 ### Prerequisites
 
@@ -368,12 +378,13 @@ Dashboard light mode uses `#F4F3EF` (warm off-white) as the background and `#1C1
 ### Completed
 - [x] Phase 1 — UI Shell & Design System
 - [x] Phase 2 — Frontend Logic & Interactivity
+- [x] Phase 3 — Claude AI Concierge integration
+- [x] Phase 4 — Node.js + Express backend API
+- [x] Phase 5 — Polish, micro-interactions, error & empty states
+- [x] Phase 6 — Deployment (Vercel)
 
 ### In Progress
-- [ ] Phase 3 — Claude AI Concierge integration
-- [ ] Phase 4 — Node.js + Express backend API
-- [ ] Phase 5 — Polish, micro-interactions, error & empty states
-- [ ] Phase 6 — Deployment (Vercel)
+*(All phases complete)*
 
 ---
 
