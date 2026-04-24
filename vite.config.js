@@ -37,13 +37,7 @@ export default defineConfig({
     sourcemap:      false,
     chunkSizeWarningLimit: 800,
     rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor:   ['react', 'react-dom', 'react-router-dom'],
-          icons:    ['lucide-react'],
-          socket:   ['socket.io-client'],
-        }
-      }
+      output: {}
     }
   }
 })
